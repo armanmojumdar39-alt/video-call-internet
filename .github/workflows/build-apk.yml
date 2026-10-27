@@ -1,0 +1,67 @@
+name: Build Connecto APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      server_url:
+        description: "Backend URL (e.g. https://connecto-server.onrender.com)"
+        required: false
+        type: string
+        default: ""
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - ".github/workflows/build-apk.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate Android project and permissions
+        working-directory: app
+        run: bash setup.sh
+
+      - name: Configure backend URL
+        working-directory: app
+        env:
+          INPUT_SERVER_URL: ${{ github.event.inputs.server_url }}
+          VARIABLE_SERVER_URL: ${{ vars.SERVER_URL }}
+        run: |
+          URL="$INPUT_SERVER_URL"
+          if [ -z "$URL" ]; then URL="$VARIABLE_SERVER_URL"; fi
+          if [ -z "$URL" ]; then URL="http://10.0.2.2:3000"; fi
+          echo "Building with SERVER_URL=$URL"
+          dart run --define=SERVER_URL="$URL" --version >/dev/null 2>&1 || true
+          python3 - "$URL" <<'PY'
+          import sys
+          p = "lib/services/api.dart"
+          s = open(p, encoding="utf-8").read()
+          url = sys.argv[1].rstrip("/")
+          s = s.replace("http://10.0.2.2:3000", url)
+          open(p, "w", encoding="utf-8").write(s)
+          PY
+
+      - name: Build debug APK
+        working-directory: app
+        run: flutter build apk --debug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: connecto-apk
+          path: app/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
