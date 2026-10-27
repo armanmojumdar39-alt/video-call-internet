@@ -1,0 +1,19 @@
+# One-click deploy: render.com -> New -> Blueprint -> pick this repo
+services:
+  - type: web
+    name: connecto-server
+    runtime: node
+    rootDir: server
+    plan: free
+    buildCommand: npm install --omit=dev
+    startCommand: node src/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: OTP_MODE
+        value: "off"
+      - key: METERED_APP
+        sync: false
+      - key: METERED_API_KEY
+        sync: false
