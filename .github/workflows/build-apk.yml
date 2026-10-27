@@ -34,7 +34,7 @@ jobs:
         working-directory: app
         run: bash setup.sh
 
-      - name: Configure backend URL
+      - name: Build debug APK
         working-directory: app
         env:
           INPUT_SERVER_URL: ${{ github.event.inputs.server_url }}
@@ -44,19 +44,7 @@ jobs:
           if [ -z "$URL" ]; then URL="$VARIABLE_SERVER_URL"; fi
           if [ -z "$URL" ]; then URL="http://10.0.2.2:3000"; fi
           echo "Building with SERVER_URL=$URL"
-          dart run --define=SERVER_URL="$URL" --version >/dev/null 2>&1 || true
-          python3 - "$URL" <<'PY'
-          import sys
-          p = "lib/services/api.dart"
-          s = open(p, encoding="utf-8").read()
-          url = sys.argv[1].rstrip("/")
-          s = s.replace("http://10.0.2.2:3000", url)
-          open(p, "w", encoding="utf-8").write(s)
-          PY
-
-      - name: Build debug APK
-        working-directory: app
-        run: flutter build apk --debug
+          flutter build apk --debug --dart-define=SERVER_URL="$URL"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
